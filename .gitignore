@@ -127,3 +127,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# PyCharm files
+.idea/
+
+# VS files
+.vs/
+.vscode/
+*.vcxproj.user
+Debug/
+x64/
+

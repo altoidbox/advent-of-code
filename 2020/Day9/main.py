@@ -9,13 +9,6 @@ def read_file(path):
         return list(map(int, f))
 
 
-def binary_search(value, sorted_data):
-    index = bisect_left(sorted_data, value)
-    if index == len(sorted_data) or sorted_data[index] != value:
-        return False
-    return index
-
-
 class Xmas(object):
     def __init__(self):
         self.history = deque()

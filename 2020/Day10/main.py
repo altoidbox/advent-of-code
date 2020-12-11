@@ -23,9 +23,8 @@ def part1(data):
 
 def solve_for(num, saved):
     count = 0
-    for key, ways in saved.items():
-        if key - num <= 3:
-            count += ways
+    for n in range(num + 1, num + 4):
+        count += saved.get(n, 0)
     return count
 
 

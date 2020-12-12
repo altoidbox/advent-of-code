@@ -21,6 +21,7 @@ def calc_fuel(fuel):
         last = last//3 - 2
     return result
 
+
 def part2():
     data = read_file("input.txt")
     result = sum(map(calc_fuel, data))

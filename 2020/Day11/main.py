@@ -6,66 +6,6 @@ def read_file(path):
     return data
 
 
-class Grid(object):
-    def __init__(self, values):
-        self.values = []
-        for row in values:
-            self.values.append(list(row))
-        self.height = 0
-        self.width = 0
-        self._init_sizes()
-
-    def _init_sizes(self):
-        self.height = len(self.values)
-        self.width = len(self.values[0]) if self.values else 0
-
-    def dup(self):
-        dup = Grid([])
-        for row in self.values:
-            dup.values.append(list(row))
-        dup._init_sizes()
-        return dup
-
-    def each_point(self):
-        for p in Point.range(Point(0, 0), Point(self.width - 1, self.height - 1)):
-            yield p
-
-    def items(self):
-        for p in Point.range(Point(0, 0), Point(self.width - 1, self.height - 1)):
-            yield p, self[p]
-
-    def __getitem__(self, point):
-        try:
-            return self.values[point.y][point.x]
-        except IndexError:
-            raise IndexError("{} out of range for {} by {}".format(point, self.width, self.height))
-
-    def __setitem__(self, point, value):
-        self.values[point.y][point.x] = value
-
-    def __contains__(self, point):
-        return 0 <= point.x < self.width and 0 <= point.y < self.height
-
-    def __eq__(self, other):
-        return self.values == other.values
-
-    def __str__(self):
-        return '\n'.join(''.join(row) for row in self.values)
-
-    def range(self):
-        for x in range(0, self.width):
-            for y in range(0, self.height):
-                yield Point(x, y)
-
-    def adjacent(self, point):
-        lower_point = Point(max(0, point.x - 1), max(0, point.y - 1))
-        upper_point = Point(min(self.width - 1, point.x + 1), min(self.height - 1, point.y + 1))
-        for p in Point.range(lower_point, upper_point):
-            if p.x == point.x and p.y == point.y:
-                continue
-            yield p
-
-
 class Point(object):
     def __init__(self, x, y):
         self.x = x
@@ -125,6 +65,86 @@ class Point(object):
         return abs(self.x - x) + abs(self.y - y)
 
 
+class Grid(object):
+    ADJACENT_DIRS = [p for p in Point.range(Point(-1, -1), Point(1, 1)) if not (p.x == 0 and p.y == 0)]
+    PREV_DIRS = ADJACENT_DIRS[:4]
+    NEXT_DIRS = ADJACENT_DIRS[4:]
+
+    def __init__(self, values):
+        self.values = []
+        for row in values:
+            self.values.append(list(row))
+        self.height = 0
+        self.width = 0
+        self._init_sizes()
+
+    def _init_sizes(self):
+        self.height = len(self.values)
+        self.width = len(self.values[0]) if self.values else 0
+
+    @staticmethod
+    def create(width, height, init_val):
+        grid = Grid([])
+        row = [init_val] * width
+        for _ in range(height):
+            grid.values.append(list(row))
+        grid.height = height
+        grid.width = width
+        return grid
+
+    def dup(self):
+        dup = Grid([])
+        for row in self.values:
+            dup.values.append(list(row))
+        dup._init_sizes()
+        return dup
+
+    def each_point(self):
+        for p in Point.range(Point(0, 0), Point(self.width - 1, self.height - 1)):
+            yield p
+
+    def items(self):
+        for p in Point.range(Point(0, 0), Point(self.width - 1, self.height - 1)):
+            yield p, self[p]
+
+    def get(self, point, default=None):
+        try:
+            return self[point]
+        except IndexError:
+            return default
+
+    def __getitem__(self, point):
+        try:
+            return self.values[point.y][point.x]
+        except IndexError:
+            raise IndexError("{} out of range for {} by {}".format(point, self.width, self.height))
+
+    def __setitem__(self, point, value):
+        self.values[point.y][point.x] = value
+
+    def __contains__(self, point):
+        return 0 <= point.x < self.width and 0 <= point.y < self.height
+
+    def __eq__(self, other):
+        return self.values == other.values
+
+    def __str__(self):
+        return '\n'.join(''.join(str(v) for v in row) for row in self.values)
+
+    def range(self):
+        for y in range(0, self.height):
+            for x in range(0, self.width):
+                yield Point(x, y)
+
+    def adjacent(self, point):
+        lower_point = Point(max(0, point.x - 1), max(0, point.y - 1))
+        upper_point = Point(min(self.width - 1, point.x + 1), min(self.height - 1, point.y + 1))
+        for p in Point.range(lower_point, upper_point):
+            if p.x == point.x and p.y == point.y:
+                continue
+            yield p
+
+
 def count_adjacent(grid, point):
     count = 0
     for adj in grid.adjacent(point):
@@ -162,8 +182,6 @@ def part1(path):
     grid = Grid(read_file(path))
     num_moves = 1
     while num_moves:
-        # print(grid)
-        # print_adj(grid)
         num_moves, grid = move(grid)
     print(len(list(v for p, v in grid.items() if v == '#')))
 
@@ -213,17 +231,14 @@ def part2(path):
     grid = Grid(read_file(path))
     num_moves = 1
     while num_moves:
-        # print(grid)
-        # print_adj2(grid)
-        # print('')
         num_moves, grid = move2(grid)
     print(len(list(v for p, v in grid.items() if v == '#')))
 
 
 def main():
-    # part1("example.txt")
-    # part1("input.txt")
-    # part2("example.txt")
+    part1("example.txt")
+    part1("input.txt")
+    part2("example.txt")
     part2("input.txt")
 
 

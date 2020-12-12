@@ -97,7 +97,6 @@ class MapPart2(object):
 
     def move(self, c, n):
         self._moves[c](n)
-        #print(self.cur, self.waypoint - self.cur)
 
     def north(self, n):
         self.waypoint = self.waypoint.north(n)
@@ -110,10 +109,6 @@ class MapPart2(object):
 
     def west(self, n):
         self.waypoint = self.waypoint.west(n)
-
-
-def manhatten_dist(t1, t2):
-    return abs(t1.x - t2.x) + abs(t1.y - t2.y)
 
 
 class Point(object):
@@ -165,7 +160,7 @@ def part1():
     for direction, dist in data:
         d.move(direction, dist)
 
-    print("{}: {}".format(d.cur, manhatten_dist(Point(0, 0), d.cur)))
+    print("{}: {}".format(d.cur, d.cur.dist(0, 0)))
 
 
 def part2():
@@ -174,7 +169,7 @@ def part2():
     for direction, dist in data:
         d.move(direction, dist)
 
-    print("{}: {}".format(d.cur, manhatten_dist(Point(0, 0), d.cur)))
+    print("{}: {}".format(d.cur, d.cur.dist(0, 0)))
 
 
 def main():

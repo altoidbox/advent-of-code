@@ -25,6 +25,18 @@ class Point3D(object):
         self.dims = list(dims)
 
     @property
+    def x(self):
+        return self.dims[0]
+
+    @property
+    def y(self):
+        return self.dims[1]
+
+    @property
+    def z(self):
+        return self.dims[2]
+
+    @property
     def tuple(self):
         # returning it like this makes it sort naturally as a tuple
         return tuple(reversed(self.dims))
@@ -172,6 +184,7 @@ def pass_time_dim(data, i):
 def part2():
     data = [Moon(p) for p in read_file("input.txt")]
     cycles = []
+    # Each axis operates independently, so find a cycle for each
     for dim in range(3):
         states = set()
         cur_state = tuple(m.dim_info(dim) for m in data)
@@ -182,6 +195,7 @@ def part2():
             # print(dim, cur_state)
         cycles.append(len(states))
     print(cycles)
+    # Once we have the cycle for each axis, find the least common multiple to determine when all the cycles coincide
     print(math.lcm(*cycles))
 
 

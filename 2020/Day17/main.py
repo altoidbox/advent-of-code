@@ -1,16 +1,3 @@
-import itertools
-
-
-OP_ADD = 1
-OP_MULT = 2
-OP_INPUT = 3
-OP_OUTPUT = 4
-OP_JUMP_IF_TRUE = 5
-OP_JUMP_IF_FALSE = 6
-OP_LESS_THAN = 7
-OP_EQUALS = 8
-OP_REL_BASE_OFFSET = 9
-OP_HALT = 99
 
 
 def minmax(it, key=lambda x: x):

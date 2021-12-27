@@ -55,7 +55,6 @@ def find_all_vx(tmin, tmax):
     for x in range(tmax.x + 1):
         v = Point(x, 0)
         p = Point(0, 0)
-        maxn = 0
         n = 0
         while v.x > 0:
             p, v = simulate1(p, v)
@@ -63,13 +62,8 @@ def find_all_vx(tmin, tmax):
             if p.x > tmax.x:
                 break
             if p.x >= tmin.x:
-                if v.x == 0:
-                    # free fall, kind of cheating here, but I know the max steps for the free-fall solutions fit this
-                    maxn = 0 - tmin.y + (tmax.y - tmin.y)
-                    break
-                maxn = n
-        if maxn:
-            options.append((x, maxn))
+                options.append(x)
+                break
     return options
 
 
@@ -89,7 +83,7 @@ def find_vy(x, tmin, tmax):
     return answer
 
 
-def find_solutions(x, steps, tmin, tmax):
+def find_solutions(x, tmin, tmax):
     solns = []
     for y in range(tmin.y, 0-tmin.y):
         v = Point(x, y)
@@ -112,8 +106,8 @@ def part2(tmin, tmax):
     xopts = find_all_vx(tmin, tmax)
     solns = []
     #print(xopts)
-    for x, maxn in xopts:
-        solns.extend(find_solutions(x, maxn, tmin, tmax))
+    for x in xopts:
+        solns.extend(find_solutions(x, tmin, tmax))
     print(len(solns))
 
 

@@ -1,6 +1,8 @@
 import sys
 import functools
-import math
+from collections import Counter
+from itertools import combinations
+
 
 def read_file(path):
     data = []
@@ -55,19 +57,19 @@ class Point(object):
         return tuple(reversed(self.dims))
 
     def dist(self, other):
-        return sum(s + o for s, o in zip(self.dims, other.dims))
+        return sum(abs(s - o) for s, o in zip(self.dims, other.dims))
 
     def rotate(self, x, y, z):
         p = Point(*self.dims)
-        for _ in range(x):
+        for _ in range(x % 4):
             tz = p.y
             p.y = -p.z
             p.z = tz
-        for _ in range(y):
+        for _ in range(y % 4):
             tx = p.z
             p.z = -p.x
             p.x = tx
-        for _ in range(z):
+        for _ in range(z % 4):
             ty = p.x
             p.x = -p.y
             p.y = ty
@@ -107,144 +109,172 @@ class Point(object):
         return "Point({})".format(",".join(str(d) for d in self.dims))
 
     @staticmethod
-    def range(a, b):
-        xstep = 0
-        ystep = 0
-        if a.x < b.x:
-            xstep = 1
-        elif a.x > b.x:
-            xstep = -1
-        if a.y < b.y:
-            ystep = 1
-        elif a.y > b.y:
-            ystep = -1
-        p = Point(a.x, a.y)
-        step = Point(xstep, ystep)
-        while p.x != b.x or p.y != b.y:
-            yield p
-            p += step
-        yield b
+    def range3(start, end):
+        for x in range(start.x, end.x + 1):
+            for y in range(start.y, end.y + 1):
+                for z in range(start.z, end.z + 1):
+                    yield Point(x, y, z)
 
 
-def minmax(it, key=lambda x: x):
-    min_ = max_ = None
-    for item in it:
-        val = key(item)
-        if min_ is None or val < min_:
-            min_ = val
-        if max_ is None or val > max_:
-            max_ = val
-    return min_, max_
-
-
-class Grid(dict):
-    _sentinel = object()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._minx = self._maxx = 0
-        self._miny = self._maxy = 0
-        self._dirty = False
-
-    def update(self, *args, **kwargs):
-        super().update(*args, **kwargs)
-        self._dirty = True
-
-    def __setitem__(self, key, value):
-        super(Grid, self).__setitem__(key, value)
-        self._dirty = True
-        return value
-
-    def setdefault(self, key, default):
-        result = self.get(key, self._sentinel)
-        if result is self._sentinel:
-            self[key] = default
-            result = default
-        return result
-
-    def dim_size(self, dim):
-        if len(self) == 0:
-            return 0
-        min_, max_ = minmax(self.keys(), key=lambda p: p[dim])
-        return max_ - min_ + 1
-
-    def _update_ranges(self):
-        if self._dirty:
-            self._minx, self._maxx = minmax(self.keys(), key=lambda p: p.x)
-            self._miny, self._maxy = minmax(self.keys(), key=lambda p: p.y)
-            self._dirty = False
+class RelativePoint(object):
+    def __init__(self, source, dest):
+        self.source = source
+        self.rel = dest - source
+        self.abs_rel = tuple(sorted(abs(v) for v in self.rel.tuple))
 
     @property
-    def minx(self):
-        self._update_ranges()
-        return self._minx
-
-    @property
-    def maxx(self):
-        self._update_ranges()
-        return self._maxx
-
-    @property
-    def miny(self):
-        self._update_ranges()
-        return self._miny
-
-    @property
-    def maxy(self):
-        self._update_ranges()
-        return self._maxy
-
-    @property
-    def width(self):
-        return self.dim_size(0)
-
-    @property
-    def height(self):
-        return self.dim_size(1)
-
-    @property
-    def depth(self):
-        return self.dim_size(2)
+    def dest(self):
+        return self.rel + self.source
 
     def __str__(self):
-        lines = []
-        for y in range(self.miny, self.maxy+1):
-            line = ""
-            for x in range(self.minx, self.maxx + 1):
-                line += str(self.get(Point(x, y), '.'))
-            lines.append(line)
-        return "\n".join(lines)
+        return 'RP{}->{}={}'.format(self.source, self.dest, self.rel)
+
+    def __repr__(self):
+        return str(self)
+
+
+class RelativeMap(object):
+    def __init__(self, source, points):
+        self.source = source
+        self.pmap = {}
+        self.rmap = {}
+        self.set = set()
+        for p in points:
+            if p == source:
+                continue
+            rel_point = RelativePoint(source, p)
+            self.pmap[p] = rel_point
+            self.rmap.setdefault(rel_point.abs_rel, []).append(rel_point)
+            self.set.add(rel_point.abs_rel)
+
+    def __str__(self):
+        return 'RM{}'.format(self.source)
+
+    def __repr__(self):
+        return str(self)
 
 
 def make_rel_map(data_set):
     maps = {}
     for p in data_set:
-        maps[p] = set()
-        for p2 in data_set:
-            maps[p].add(tuple(sorted(abs(v) for v in (p2-p).tuple)))
+        maps[p] = RelativeMap(p, data_set)
     return maps
+
+
+class ScannerMap(object):
+    def __init__(self, points):
+        self.points = points
+        self._relmap = None
+    
+    @property
+    def relmap(self):
+        if not self._relmap:
+            self._relmap = make_rel_map(self.points)
+        return self._relmap
+
+    def reorient(self, info):
+        for i, p in enumerate(self.points):
+            self.points[i] = reorient(p, info)
+        self._relmap = None
+
+
+def reorient(p, info):
+    new_p = Point(0, 0, 0)
+    for i, (sign, other_i) in enumerate(info):
+        new_p.dims[other_i] = p.dims[i] * sign
+    return new_p
+
+
+def find_point_reorientation(rp0, rp1):
+    """
+    Create info to reorient rp1 (RelativePoint1) to rp0
+    """
+    if len(rp0) > 1:
+        raise Exception('rp0 not unique!')
+    if len(rp1) > 1:
+        raise Exception('rp1 not unique!')
+    if len(Counter(rp0[0].abs_rel)) != 3:
+        raise Exception('orientation not unique!')
+    r0 = rp0[0].rel
+    r1 = rp1[0].rel
+    abs_r0 = [abs(v) for v in r0.dims]
+    abs_r1 = [abs(v) for v in r1.dims]
+    info = []
+    for i, v in enumerate(abs_r1):
+        other_i = abs_r0.index(v)
+        sign = 1 if r1[i] == r0[other_i] else -1
+        info.append((sign, other_i))
+    offset = rp0[0].source - reorient(rp1[0].source, info)
+    return info, offset
+
+
+def find_scanner_reorientation(s0, s1, similar):
+    """
+    Create info to reorient s1 (Scanner1) to s0
+    """
+    for p0, p1, similarity in similar:
+        for rel in similarity:
+            try:
+                return find_point_reorientation(s0.relmap[p0].rmap[rel], s1.relmap[p1].rmap[rel])
+            except Exception as e:
+                print(e)
+                pass
+    raise Exception('No valid similarity found!')
+
+
+def find_similarity(m0, m1):
+    similar = []
+    for p0 in m0:
+        for p1 in m1:
+            similarity = m0[p0].set.intersection(m1[p1].set)
+            if len(similarity) > 10:
+                similar.append((p0, p1, similarity))
+                #print(p0, p1, len(similarity))
+    if len(similar) < 12:
+        return None
+    return similar
 
 
 def part1(fname):
     data = read_file(fname)
-    map0 = make_rel_map(data[0])
-    map1 = make_rel_map(data[1])
-    for p in data[0]:
-        for p2 in data[1]:
-            similarity = map0[p].intersection(map1[p2])
-            if len(map0[p].intersection(map1[p2])) >= 12:
-                print(p, p2, len(similarity))
-    print(sorted(map0[Point(-618,-824,-621)]))
-    print(sorted(map1[Point(686,422,578)]))
+    scanners = [ScannerMap(points) for points in data]
+    location = [None] * len(scanners)
+    location[0] = Point(0, 0, 0)
+    unknown = {i for i in range(len(scanners))}
+    # Keying everything of scanner0
+    unknown.remove(0)
+    to_process = [0]
+    while to_process:
+        cur = to_process.pop()
+        found = []
+        for i in unknown:
+            similar = find_similarity(scanners[cur].relmap, scanners[i].relmap)
+            if not similar:
+                continue
+            info, offset = find_scanner_reorientation(scanners[cur], scanners[i], similar)
+            loc = offset + location[cur]
+            print(cur, i, info, offset, loc)
+            location[i] = loc
+            scanners[i].reorient(info)
+            found.append(i)
+        to_process.extend(found)
+        unknown.difference_update(found)
+    beacons = set()
+    for scanner, loc in zip(scanners, location):
+        for point in scanner.points:
+            beacons.add(point + loc)
+    print(len(beacons))
+    return location
 
-def part2(fname):
-    data = read_file(fname)
+
+def part2(scanner_locs):
+    print(max(p0.dist(p1) for p0, p1 in combinations(scanner_locs, 2)))
 
 
 def main():
     fname = sys.argv[1]
-    part1(fname)
-    #part2()
+    scanner_locs = part1(fname)
+    part2(scanner_locs)
 
 
 if __name__ == "__main__":

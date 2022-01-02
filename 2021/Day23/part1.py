@@ -264,13 +264,7 @@ def read_file(fname):
         return f.read()
 
 
-def sample1():
-    #burrow = Burrow(rooms=[1, 0, 2, 3, 1, 2, 3, 0])
-    part1('sample.txt')
-
-
 def part1(fname):
-    #burrow = Burrow(rooms=[3, 1, 3, 0, 2, 1, 2, 0])
     burrow = Burrow.from_str(read_file(fname))
     print(burrow)
     solve(0, [burrow])

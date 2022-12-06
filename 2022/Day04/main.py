@@ -39,7 +39,6 @@ def load(args):
     return pairs
 
 
-
 def part1(pairs):
     total = 0
     for (l, r) in pairs:

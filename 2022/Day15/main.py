@@ -215,7 +215,7 @@ class MultiRange(object):
 
 def part2(data):
     g = prepare(data)
-    # There's probably a smarter way to do this, but this doesn't take *too* long
+    # We can probably reduce our y ranges much faster than we do, but this doesn't take *too* long
     max_range = 4000000
     for y in range(max_range):
         cur = MultiRange(0, max_range)

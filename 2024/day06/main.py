@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from collections import defaultdict
 
 
 def load(path):
@@ -120,16 +121,16 @@ class Dir(object):
     dir_do_chr = { v: k for k, v in chr_to_dir.items() }
     
     @staticmethod
-    def rot_right(dir_):
+    def rot_right(dir_:Point):
         return Dir.right_rotations[dir_]
     
     @staticmethod
-    def rot_left(dir_):
+    def rot_left(dir_:Point):
         return Dir.left_rotations[dir_]
 
 
 class Guard(object):
-    def __init__(self, grid):
+    def __init__(self, grid:Grid):
         self.grid = grid
         self.walls = set()
         self.location = None
@@ -152,19 +153,12 @@ class Guard(object):
         if self.location is None:
             raise(f'no start found')
 
-    def rotate(self):
-        self.direction = Dir.rot_right(self.direction)
-    
     def move(self):
-        collisions = []
-        while True:
-            front_pos = self.location + self.direction
-            if front_pos not in self.walls:
-                self.location = front_pos
-                break
-            collisions.append(front_pos)
-            self.rotate()
-        return collisions
+        front_pos = self.location + self.direction
+        if front_pos in self.walls:
+            self.direction = Dir.rot_right(self.direction)
+        else:
+            self.location = front_pos
 
 
 def part1(path):
@@ -177,30 +171,49 @@ def part1(path):
     print(len(positions))
 
 
-def check_loop(guard, start_wall, dir_):
-    seq = [start_wall]
-    guard.direction = Dir.rot_right(dir_)
-    guard.location = start_wall + (Dir.rot_right(guard.direction))
-    while len(seq) < 3:
-        pass
+class WallGrid(object):
+    """
+    Incomplete, but the idea would be to maintain an array of the walls in every row
+    and an array of the walls in every column. This way instead of moving one cell at
+    a time, we could just move to the next wall immediately (or, off the grid if no 
+    wall exists further in the same direction)
+    """
+    def __init__(self, grid: Grid):
+        self.rows = []
+        self.cols = []
+        for x in range(grid.width):
+            pass
+
+
+def find_loop(guard):
+    history = defaultdict(set)
+    while guard.location in guard.grid:
+        if guard.direction in history[guard.location]:
+            return True
+        history[guard.location].add(guard.direction)
+        guard.move()
+    return False
 
 
 def part2(path):
     grid = Grid(load(path))
     guard = Guard(grid)
-    collisions = []
-    while guard.location in grid:
-        collisions.extend(guard.move())
-    print(len(positions))
-    # For every wall, there are 4 possible loops
-    # - from below: check for walls 1S and any E
-    # - from left : check for walls 1W and any S
-    # - from above: check for walls 1N and any W
-    # - from right: check for walls 1E and any N
-    # If we check every wall block for a loop in these 4 ways, the 3rd (missing) block can be calculated
-    for wall in guard.walls:
-        pass
-
+    positions = set()
+    candidates = []
+    while guard.location in guard.grid:
+        wall_pos = guard.location + guard.direction
+        if wall_pos not in positions and wall_pos in grid and wall_pos not in guard.walls:
+            loc, dir_ = guard.location, guard.direction
+            guard.walls.add(wall_pos)
+            if find_loop(guard):
+                candidates.append(wall_pos)
+            guard.walls.remove(wall_pos)
+            guard.location, guard.direction = loc, dir_
+        positions.add(guard.location)
+        guard.move()
+    
+    print(len(set(candidates)))
+    print(candidates)
 
 
 def main():

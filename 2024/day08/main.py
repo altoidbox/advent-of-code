@@ -125,7 +125,6 @@ def part1(path):
 
 def part2(path):
     grid = Grid(load(path))
-    grid = Grid(load(path))
     antenna = defaultdict(list)
     for p, i in grid.items():
         if i != '.':

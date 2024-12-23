@@ -453,7 +453,7 @@ def part1(path):
             best = [dp]
         elif cost == best[0].cost:
             best.append(dp)
-    print(best)
+    print(best[0].cost)
 
     #print('Chosen path:')
     #print_chosen_path(maze)
@@ -477,8 +477,6 @@ def follow(maze, paths):
         if cur.point == maze.start:
             continue
         parents = maze.best_paths[cur]
-        if len(parents) > 1:
-            print('Multiple parents:', parents)
         for cost, p in parents:
             paths.append(p)
     return on_path

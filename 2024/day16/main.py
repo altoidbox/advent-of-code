@@ -4,6 +4,7 @@ import argparse
 import math
 import heapq
 from functools import total_ordering
+from collections import defaultdict
 
 
 def load(path):
@@ -159,7 +160,6 @@ class Grid(object):
     def __str__(self):
         return '\n'.join(''.join(str(v) for v in row) for row in self.values)
 
-
 @total_ordering
 class DirPoint(object):
     DIRS = {
@@ -192,6 +192,9 @@ class DirPoint(object):
     def __hash__(self):
         return hash(self.tuple)
     
+    def __lt__(self, other):
+        return self.tuple < other.tuple
+
     def __eq__(self, other):
         return self.tuple == other.tuple
 
@@ -208,7 +211,7 @@ class DirPoint(object):
         Returns:
             DirPoint: The point after moving one step.
         """
-        return DirPoint(self.point + self.DIRS[self.direction], self.direction, 1)
+        return DirPoint(self.point + self.DIRS[self.direction], self.direction, self.cost + 1)
     
     def turn(self, direction) -> 'DirPoint':
         """
@@ -220,7 +223,11 @@ class DirPoint(object):
         Returns:
             DirPoint: The point after turning in the given direction.
         """
-        return DirPoint(self.point + self.DIRS[direction], direction, self.TURN_COSTS[self.direction][direction] + 1)
+        if direction == self.direction:
+            return DirPoint(self.point + self.DIRS[self.direction], self.direction, self.cost + 1)
+        if direction == self.OPPOSITE[self.direction]:
+            return None
+        return DirPoint(self.point, direction, self.cost + 1000)
 
 
 class Path(object):
@@ -254,57 +261,41 @@ class DfsState(object):
     def __repr__(self):
         return f'DfsState({self.dirpoint}, {self.visited})'
 
+
 class Maze(object):
     def __init__(self, grid, start, end):
         self.grid = grid
         self.start = start
         self.end = end
-        self.best_paths = {}
+        self.best_paths = defaultdict(list)
         self.visited = set()
 
-    def navigate_bfs(self, start):
-        root = DfsState(None, start)
-        moves = [DfsState(root, start)]
-        self.visited.add(start.point)
+    def navigate(self, start):
+        moves = [(0, start)]
+        self.best_paths[start].append((0, None))
         while moves:
-            state = moves[-1]
-            cur = state.next_child()
-            if cur is None:
-                # Need to evaluate child paths to determine best path from this point, and inform the parent
-                if len(state.paths) == 0:
+            _cost, cur = heapq.heappop(moves)
+            for dir_ in '^>v<':
+                child = cur.turn(dir_)
+                if child is None:
+                    continue
+                if self.grid[child.point] == '#':
                     # No path can go from here to the end
-                    self.best_paths[state.dirpoint] = None
+                    continue
+                cost, parent = self.best_paths.get(child, [(math.inf, None)])[0]
+                if cost < child.cost or (cost == child.cost and parent == cur):
+                    # We've already found a better path
+                    continue
+                if cost == child.cost:
+                    self.best_paths[child].append((child.cost, cur))
                 else:
-                    # From all possible paths, choose the one with the lowest cost
-                    best = min(state.paths, key=lambda p: p.cost)
-                    # Save the location of the best path
-                    self.best_paths[state.dirpoint] = best
-                    # Add the best path to the parent
-                    state.parent.paths.append(DirPoint(state.dirpoint.point, state.dirpoint.direction, best.cost + state.dirpoint.cost))
-                moves.pop()
-                self.visited.remove(state.dirpoint.point)
-                continue
-            if cur.point in self.visited:
-                # We've already visited this point
-                continue
-            if cur in self.best_paths:
-                # We already know the best path
-                path = self.best_paths[cur]
-                if path is not None:
-                    state.paths.append(DirPoint(cur.point, cur.direction, path.cost + cur.cost))
-                continue
-            if cur.point == self.end:
-                # Found the end
-                state.paths.append(DirPoint(cur.point, cur.direction, cur.cost))
-                continue
-            if self.grid[cur.point] == '#':
-                # No path can go from here to the end
-                continue
-
-            # done with all the easy cases, need to evaluate this node's children
-            moves.append(DfsState(state, cur))
-            self.visited.add(cur.point)
-        return root.paths[0]
+                    self.best_paths[child] = [(child.cost, cur)]
+                #print(f'{cur}->{child} (beats {parent}->{child})')
+                if child.point == self.end:
+                    # Found the end
+                    # print(f'{cur}->{child} (beats {parent}->{child})')
+                    continue
+                heapq.heappush(moves, (child.cost, child))
 
     def navigate_dfs(self, start):
         root = DfsState(None, start)
@@ -448,20 +439,74 @@ def part1(path):
     print(end)
     maze = Maze(grid, start, end)
     start_dp = DirPoint(start, '>')
-    path = maze.navigate(start_dp)  #, cost
+    maze.navigate(start_dp)
+    best = []
+    for dir_ in '^>v<':
+        dp = DirPoint(end, dir_)
+        cost, p = maze.best_paths.get(dp, [(math.inf, None)])[0]
+        if p is None:
+            continue
+        dp.cost = cost
+        if len(best) == 0:
+            best.append(dp)
+        elif cost < best[0].cost:
+            best = [dp]
+        elif cost == best[0].cost:
+            best.append(dp)
+    print(best)
 
-    print('Chosen path:')
-    print_chosen_path(maze)
-    print('All paths:')
-    print_all_paths(maze)
+    #print('Chosen path:')
+    #print_chosen_path(maze)
+    #print('All paths:')
+    #print_all_paths(maze)
 
-    print(maze.best_paths[start_dp])
+    #print(maze.best_paths[start_dp])
     #print(path.points)
     #print(cost)
 
 
+def follow(maze, paths):
+    on_path = set()
+    visited = set()
+    while paths:
+        cur = paths.pop()
+        if cur in visited:
+            continue
+        visited.add(cur)
+        on_path.add(cur.point)
+        if cur.point == maze.start:
+            continue
+        parents = maze.best_paths[cur]
+        if len(parents) > 1:
+            print('Multiple parents:', parents)
+        for cost, p in parents:
+            paths.append(p)
+    return on_path
+
+
 def part2(path):
-    pass
+    grid = Grid(load(path))
+    start = grid.index('S')
+    end = grid.index('E')
+    maze = Maze(grid, start, end)
+    start_dp = DirPoint(start, '>')
+    maze.navigate(start_dp)
+    best = []
+    for dir_ in '^>v<':
+        dp = DirPoint(end, dir_)
+        cost, p = maze.best_paths.get(dp, [(math.inf, None)])[0]
+        if p is None:
+            continue
+        dp.cost = cost
+        if len(best) == 0:
+            best.append(dp)
+        elif cost < best[0].cost:
+            best = [dp]
+        elif cost == best[0].cost:
+            best.append(dp)
+    #print(best)
+    on_path = follow(maze, best)
+    print(len(on_path))
 
 
 def main():

@@ -270,7 +270,8 @@ def part1(path):
     found = find_cheats(maze)
     if 0:
         for savings, points in sorted(found.items()):
-            print(f'{savings}: {len(points)}')
+            print(f'There are {len(points)} cheats that save {savings} picoseconds.')
+            print(f'\t{points}')
     over_100 = 0
     for savings, points in sorted(found.items()):
         if savings >= 100:
@@ -278,16 +279,15 @@ def part1(path):
     print(over_100)
 
 
-def all_within20(point):
+def all_within20(center, dist=20):
     N = Point(0, -1)
     E = Point(1, 0)
     S = Point(0, 1)
     W = Point(-1, 0)
     dirs = [(N, E), (E, S), (S, W), (W, N)]
-    groups = [[point], [point], [point], [point]]
+    groups = [[center], [center], [center], [center]]
     all = set()
-    generated = []
-    for i in range(20):
+    for i in range(dist):
         for j, (group, moves) in enumerate(zip(groups, dirs)):
             new_group = set()
             for p in group:
@@ -295,12 +295,11 @@ def all_within20(point):
                     new_group.add(p + move)
             groups[j] = new_group
             all.update(new_group)
-            generated.extend(new_group)
     sides = {
-        '^': groups[0].union(groups[3]),
-        '>': groups[1].union(groups[0]),
-        'v': groups[2].union(groups[1]),
-        '<': groups[3].union(groups[2]),
+        '^': [p - center for p in groups[0].union(groups[3])],
+        '>': [p - center for p in groups[1].union(groups[0])],
+        'v': [p - center for p in groups[2].union(groups[1])],
+        '<': [p - center for p in groups[3].union(groups[2])],
     }
     return all, sides
 
@@ -320,18 +319,37 @@ def find_cheats20(maze):
             cheat_cost, _ = maze.best_paths[cheat_point]
             cheat_cost += cur_point.dist(cheat_point)
             cheat_savings = cur_cost - cheat_cost
-            if cheat_savings >= 100:
+            if cheat_savings > 0:
                 found[cheat_savings].add((cur_point, cheat_point))
-        dir_to = RDIRS[next_point - cur_point]
+        
+        #saved = {}
+        #for p in square:
+        #    if p in maze.grid:
+        #        saved[p] = maze.grid[p]
+        #        maze.grid[p] = '@'
+        #saved[cur_point] = maze.grid[cur_point]
+        #maze.grid[cur_point] = 'C'
+        #print(maze.grid)
+        #for p, val in saved.items():
+        #    maze.grid[p] = saved[p]
+        #input()
+
+        # next_point = cur_point + dir_
+        offs = next_point - cur_point
+        dir_to = RDIRS[offs]
         dir_from = OPPOSITE[dir_to]
+        #print(f'Going {dir_to} from {cur_point} to {next_point}')
         # Update square
-        for point in sides[dir_to]:
+        for edge_offset in sides[dir_to]:
+            point = next_point + edge_offset
             square.add(point)
             if point in maze.best_paths:
                 cheat_points.add(point)
-        for point in sides[dir_from]:
+        for edge_offset in sides[dir_from]:
+            point = cur_point + edge_offset
             square.discard(point)
             cheat_points.discard(point)
+            point += offs
     return found
 
 
@@ -344,10 +362,12 @@ def part2(path):
     if 0:
         for savings, points in sorted(found.items()):
             print(f'There are {len(points)} cheats that save {savings} picoseconds.')
-    total = 0
+            print(f'\t{points}')
+    over_100 = 0
     for savings, points in sorted(found.items()):
-        total += len(points)
-    print(total)
+        if savings >= 100:
+            over_100 += len(points)
+    print(over_100)
 
 
 def main():

@@ -160,6 +160,7 @@ class Grid(object):
     def __str__(self):
         return '\n'.join(''.join(str(v) for v in row) for row in self.values)
 
+
 @total_ordering
 class DirPoint(object):
     DIRS = {

@@ -11,6 +11,13 @@ class Puzzle(object):
     __slots__ = ['a', 'b', 'prize']
     def __repr__(self):
         return ', '.join(f'{k}: {getattr(self, k)}' for k in self.__slots__)
+    
+    def __str__(self):
+        output = ''
+        output += f'Button A: X+{self.a.x}, Y+{self.a.y}\n'
+        output += f'Button B: X+{self.b.x}, Y+{self.b.y}\n'
+        output += f'Prize: X={self.prize.x}, Y={self.prize.y}\n\n'
+        return output
 
 
 def load(path):
@@ -30,6 +37,8 @@ def load(path):
                 cur.prize = Point(int(m.group(1)), int(m.group(2)))
                 data.append(cur)
                 cur = Puzzle()
+            elif line:
+                raise ValueError(f'Unknown line: {line}')
 
     return data
 
@@ -68,65 +77,10 @@ class Point(object):
     def __repr__(self):
         return "P({},{})".format(self.x, self.y)
 
-    @staticmethod
-    def limits(a, b):
-        miny, maxy = min(a.y, b.y), max(a.y, b.y) + 1
-        minx, maxx = min(a.x, b.x), max(a.x, b.x) + 1
-        return (minx, maxx), (miny, maxy)
-
-    @staticmethod
-    def range(a, b):
-        (minx, maxx), (miny, maxy) = Point.limits(a, b)
-        for y in range(miny, maxy):
-            changed_row = True
-            for x in range(minx, maxx):
-                yield Point(x, y), changed_row
-                changed_row = False
-
-    @staticmethod
-    def yrange(a, b):
-        (minx, maxx), (miny, maxy) = Point.limits(a, b)
-        for x in range(minx, maxx):
-            changed_col = True
-            for y in range(miny, maxy):
-                yield Point(x, y), changed_col
-                changed_col = False
     @property
     def tuple(self):
         return self.x, self.y
 
-    def north(self, n=1):
-        return Point(self.x, self.y - n)
-    
-    def east(self, n=1):
-        return Point(self.x + n, self.y)
-
-    def south(self, n=1):
-        return Point(self.x, self.y + n)
-
-    def west(self, n=1):
-        return Point(self.x - n, self.y)
-
-    def dist(self, x, y=1):
-        return abs(self.x - x) + abs(self.y - y)
-
-
-def minmax(it, key=lambda x: x):
-    min_ = max_ = None
-    for item in it:
-        val = key(item)
-        if min_ is None or val < min_:
-            min_ = val
-        if max_ is None or val > max_:
-            max_ = val
-    return min_, max_
-
-
-N = Point(0, -1)
-E = Point(1, 0)
-S = Point(0, 1)
-W = Point(-1, 0)
-CARDINAL = [N, E, S, W]
 
 # ax + by = c
 # ai + bj = k
@@ -153,8 +107,7 @@ def solve(puzzle):
     if v % d == 0:
         b = v // d
         a = (puzzle.prize.x - b * puzzle.b.x) // puzzle.a.x
-        #print(p)
-        #print(f'a:{a}, b:{b}')
+        # print(f'a:{a}, b:{b}')
         return a * 3 + b
     # print('None')
     return 0
@@ -175,19 +128,11 @@ def solve2(puzzle):
 
     v = puzzle.prize.y * puzzle.a.x - puzzle.prize.x * puzzle.a.y
     d = puzzle.b.y * puzzle.a.x - puzzle.b.x * puzzle.a.y
+    b = v // d
+    a = (puzzle.prize.x - b * puzzle.b.x) // puzzle.a.x
+    is_valid = (puzzle.a.x * a + puzzle.b.x * b) == puzzle.prize.x and (puzzle.a.y * a + puzzle.b.y * b) == puzzle.prize.y
 
-    ka = math.lcm(puzzle.a.y, puzzle.b.y) / puzzle.b.y
-    kb = math.lcm(puzzle.a.x, puzzle.b.x) / puzzle.b.x
-    kc = puzzle.prize.y / puzzle.prize.x
-    if ka == kb:
-        print(puzzle)
-        print(f'Common multiple: {ka}, {kb}, {kc}')
-
-    # print(f'{v} / {d} == {v // d}')
-    if v % d == 0:
-        b = v // d
-        a = (puzzle.prize.x - b * puzzle.b.x) // puzzle.a.x
-            
+    if is_valid:            
         return a * 3 + b
     # print('None')
     return 0
@@ -204,7 +149,7 @@ def part1(path):
 def part2(path):
     data = load(path)
     total = 0
-    for p in data:
+    for i, p in enumerate(data):
         p.prize.x += 10000000000000
         p.prize.y += 10000000000000
         total += solve2(p)

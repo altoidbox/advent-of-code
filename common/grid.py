@@ -37,8 +37,8 @@ class Grid(object):
         return 0 <= point.x < self.width and 0 <= point.y < self.height
 
     def __iter__(self):
-        for y in range(0, self.width):
-            for x in range(0, self.height):
+        for y in range(0, self.height):
+            for x in range(0, self.width):
                 yield Point(x, y)
     
     def items(self):

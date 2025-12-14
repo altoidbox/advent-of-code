@@ -13,6 +13,7 @@ SCRIPT_DIR = Path(__file__).absolute().parent
 sys.path.append(str(SCRIPT_DIR.parent.parent))
 
 
+import common
 from common.point import Point3D
 from common.debug import dprint
 
@@ -170,7 +171,7 @@ def find_candidate_minimum_distances(points):
         else:
             i1, i2 = i2, i1
         dist = points[i1].euclidean_dist(points[i2])
-        distances.append((dist, (i1, i2)))
+        distances.append(dist)
     # We will use this calculation throughout
     return sorted(distances)
 
@@ -195,32 +196,77 @@ def find_closest_nonjoined_pairs(points: list[Point3D], joined: set[tuple[int, i
     for i, (p, rp) in enumerate(zip(points, rounded_points)):
         for adacent_rp in rp.adjacent(include_self=True):
             for neighbor_i in grid.get(adacent_rp, []):
-                if neighbor_i == i:
+                if neighbor_i <= i:
                     # Don't compare a point to itself
+                    # Also, only consider pairs where neighbor_i > i
                     continue
                 if (i, neighbor_i) in joined:
                     # if a pair is already joined, ignore them
                     continue
                 dist = p.euclidean_dist(points[neighbor_i])
                 if dist <= grid_size:
-                    min_points.append(dist, (i, neighbor_i))
+                    min_points.append((dist, (i, neighbor_i)))
 
     return min_points
 
 
+def better_join_closest(points, count):
+    joined = set()
+    circuits = [{i} for i in range(len(points))]
+    closest = []
+    dlist = find_candidate_minimum_distances(points)
+    dprint(dlist)
+    while len(closest) < count:
+        d = dlist.pop(0)
+        dprint(d)
+        grid, rounded_points = round_points(points, d)
+        cur_closest = find_closest_nonjoined_pairs(points, joined, grid, rounded_points, d)
+        for d, (i1, i2) in sorted(cur_closest):
+            join_pair(i1, i2, joined, circuits)
+            closest.append((d, (i1, i2)))
+            if len(closest) == count:
+                break
+    top3 = sorted({id(c): c for c in circuits}.values(), key=lambda c: len(c), reverse=True)[:3]
+    print(top3)
+    print(math.prod((len(c) for c in top3)))
+
+
 def part1(path):
+    target = 10
     points = load(path)
-    join_closest(points, 1000)
+    #join_closest(points, target)
+    better_join_closest(points, target)
 
 
 def part2(path):
-    pass
-
+    points = load(path)
+    #join_closest(points, target)
+    #better_join_closest(points, target)
+    all_pairs = []
+    for i1 in range(len(points)):
+        for i2 in range(i1 + 1, len(points)):
+            all_pairs.append((points[i1].euclidean_dist(points[i2]), (i1, i2)))
+    all_pairs.sort()
+    circuits = [{i} for i in range(len(points))]
+    joined = set()
+    pidx = 0
+    while len(circuits[0]) < len(points):
+        d, (i1, i2) = all_pairs[pidx]
+        join_pair(i1, i2, joined, circuits)
+        if pidx == 0:
+            print(d)
+        pidx += 1
+    print(points[i1], points[i2], d, pidx)
+    print(points[i1].x * points[i2].x)
+    
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('path')
+    parser.add_argument('--debug', '-d', action='store_true')
     args = parser.parse_args()
+    if args.debug:
+        common.debug.DEBUG = True
     part1(args.path)
     part2(args.path)
 

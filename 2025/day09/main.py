@@ -51,7 +51,8 @@ def part1(path):
 
 
 def part2(path):
-    pass
+    red_tiles = load(path)
+    
 
 
 def main():
